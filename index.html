@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>บันทึกการให้ยา</title>
+<title>บันทึกการให้ยา V2</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&family=IBM+Plex+Mono:wght@500&display=swap');
 
@@ -448,7 +448,7 @@ header {
 <!-- HEADER -->
 <header>
   <div class="header-info">
-    <h1>💊 บันทึกการให้ยา</h1>
+    <h1>💊 บันทึกการให้ยา V2</h1>
     <p>Palliative Care · กดที่ยาเพื่อบันทึก</p>
   </div>
   <div class="clock" id="clockEl">--:--</div>
@@ -572,6 +572,18 @@ header {
       <button class="gs-save-btn" onclick="saveGSUrl()">💾 บันทึก URL</button>
     </div>
     <div class="settings-card">
+      <div class="settings-title">💬 LINE Messaging API</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Channel Access Token</div>
+      <input class="gs-url-input" id="line-token" type="text" placeholder="ใส่ Channel Access Token">
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px;margin-top:8px;">Group ID</div>
+      <input class="gs-url-input" id="line-group" type="text" placeholder="C... หรือ R... (Group/Room ID)">
+      <button class="gs-save-btn" onclick="saveLINE()" style="margin-top:8px;">💾 บันทึกการตั้งค่า LINE</button>
+      <div id="line-status" class="gs-status off" style="margin-top:10px;">
+        <div class="gs-dot"></div>
+        <span id="line-status-txt">ยังไม่ได้ตั้งค่า</span>
+      </div>
+    </div>
+    <div class="settings-card">
       <div class="settings-title">⚠️ จัดการข้อมูล</div>
       <button class="danger-btn" onclick="clearAll()">🗑 ลบข้อมูลทั้งหมดในเครื่อง</button>
     </div>
@@ -627,8 +639,10 @@ const MEDS = {
   sleep:    { name:'ยานอนหลับ',   sub:'Sleeping Tablet',       icon:'🌙', cls:'sleep', unit:'เม็ด', doses:['0.5 เม็ด','1 เม็ด'] }
 };
 
-let logs   = JSON.parse(localStorage.getItem('med-logs-v3') || '[]');
-let gsUrl  = localStorage.getItem('gs-url') || '';
+let logs      = JSON.parse(localStorage.getItem('med-logs-v3') || '[]');
+let gsUrl     = localStorage.getItem('gs-url') || '';
+let lineToken = localStorage.getItem('line-token') || '';
+let lineGroup = localStorage.getItem('line-group') || '';
 let curMed = null, selDose = null;
 let activeChartDrug = 'morphine';
 let sheetLogs = null; // null = ยังไม่ได้ซิงค์, array = ซิงค์แล้ว
@@ -710,11 +724,33 @@ async function saveDose() {
     displayTime: now.toLocaleString('th-TH',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})
   };
   logs.unshift(entry); save(); updateLast(); closeModal();
+
+  // แสดง toast แล้วกลับหน้าหลักทันที
   toast('✓ บันทึก '+savedName+' '+savedDose,'ok');
+  switchPage('home');
+
+  // ส่ง Google Sheet (background)
   if(gsUrl) {
     try { await fetch(gsUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)}); }
     catch(e){}
   }
+
+  // ส่ง LINE กลุ่ม
+  if(lineToken && lineGroup) {
+    sendLINE(entry);
+  }
+}
+
+// ส่งข้อความ LINE Messaging API ผ่าน Google Apps Script proxy (หลีกเลี่ยง CORS)
+function sendLINE(entry) {
+  if(!gsUrl) return; // ต้องการ Apps Script URL เป็น proxy
+  const timeStr = entry.displayTime || new Date(entry.ts).toLocaleString('th-TH');
+  const icon = entry.medId==='morphine'?'💉':entry.medId==='para'?'💊':'🌙';
+  const msg = `${icon} บันทึกการให้ยา\n━━━━━━━━━━━━━\nยา: ${entry.medName}\nขนาด: ${entry.dose}\nเวลา: ${timeStr}${entry.note?'\nหมายเหตุ: '+entry.note:''}\n━━━━━━━━━━━━━`;
+  const payload = { action:'sendLine', token: lineToken, groupId: lineGroup, message: msg };
+  try {
+    fetch(gsUrl, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  } catch(e) {}
 }
 
 // Last given
@@ -1173,7 +1209,10 @@ function genText() {
 // Settings
 function initSettings() {
   document.getElementById('gs-url').value = gsUrl;
+  document.getElementById('line-token').value = lineToken;
+  document.getElementById('line-group').value = lineGroup;
   updateGS();
+  updateLINEStatus();
 }
 function saveGSUrl() {
   gsUrl = document.getElementById('gs-url').value.trim();
@@ -1184,6 +1223,21 @@ function updateGS() {
   const b = document.getElementById('gs-status-box'), t = document.getElementById('gs-status-txt');
   if (gsUrl) { b.className='gs-status on'; t.textContent='เชื่อมต่อ Sheets แล้ว'; }
   else       { b.className='gs-status off'; t.textContent='ยังไม่ได้เชื่อมต่อ'; }
+}
+function saveLINE() {
+  lineToken = document.getElementById('line-token').value.trim();
+  lineGroup = document.getElementById('line-group').value.trim();
+  localStorage.setItem('line-token', lineToken);
+  localStorage.setItem('line-group', lineGroup);
+  updateLINEStatus();
+  toast(lineToken && lineGroup ? '✓ บันทึกการตั้งค่า LINE แล้ว' : 'ล้างการตั้งค่า LINE แล้ว', 'ok');
+}
+function updateLINEStatus() {
+  const b = document.getElementById('line-status');
+  const t = document.getElementById('line-status-txt');
+  if(!b || !t) return;
+  if (lineToken && lineGroup) { b.className='gs-status on'; t.textContent='LINE พร้อมส่งกลุ่มแล้ว'; }
+  else { b.className='gs-status off'; t.textContent='ยังไม่ได้ตั้งค่า LINE'; }
 }
 function clearAll() {
   if (!confirm('ลบข้อมูลทั้งหมด?')) return;
