@@ -983,50 +983,65 @@ function drawDrugChart(byDate, days, drugId) {
     return;
   }
 
-  const W = 340, H = 180;
-  const padL = 28, padR = 36, padT = 28, padB = 28;
+  const W = 340, H = 240;
+  const padL = 12, padR = 12, padT = 36, padB = 28;
   const chartW = W - padL - padR;
   const chartH = H - padT - padB;
   const n = data.length;
   const colW = chartW / n;
 
+  // แบ่ง chart เป็น 2 โซน: บน=เส้น (55%), ล่าง=แท่ง (45%)
+  const lineZoneH = Math.floor(chartH * 0.52);
+  const barZoneH  = Math.floor(chartH * 0.40);
+  const gapH      = chartH - lineZoneH - barZoneH; // ช่องว่างกลาง
+  const lineZoneTop = padT;
+  const barZoneTop  = padT + lineZoneH + gapH;
+  const barZoneBot  = barZoneTop + barZoneH;
+
   const maxCount = Math.max(...data.map(r => r.count), 1);
   const maxVol   = Math.max(...data.map(r => r.vol), 0.01);
 
-  // แท่ง + จุดเส้น
-  const barW = Math.min(colW * 0.45, 22);
-  let bars = '', linePts = [], dotLabels = '';
+  const barW = Math.min(colW * 0.55, 28);
+  let bars = '', linePts = [];
 
   data.forEach((row, i) => {
     const cx = padL + colW * i + colW / 2;
-    const barH2 = row.count > 0 ? (row.count / maxCount) * chartH : 0;
-    const barX = cx - barW / 2;
-    const barY = padT + chartH - barH2;
 
+    // แท่ง — เติบโตขึ้นจากล่าง barZoneBot
     if (row.count > 0) {
-      bars += `<rect x="${barX.toFixed(1)}" y="${barY.toFixed(1)}" width="${barW.toFixed(1)}" height="${barH2.toFixed(1)}"
-        rx="3" fill="${c}" opacity=".75"/>`;
-      bars += `<text x="${cx.toFixed(1)}" y="${(barY - 4).toFixed(1)}" text-anchor="middle"
-        font-size="10" fill="${c}" font-weight="700" font-family="IBM Plex Mono,monospace">${row.count}</text>`;
+      const bh = (row.count / maxCount) * barZoneH;
+      const bx = cx - barW / 2;
+      const by = barZoneBot - bh;
+      bars += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}"
+        rx="4" fill="${c}" opacity=".75"/>`;
+      // เลขจำนวนครั้ง ใต้แท่ง (ในโซนแท่ง)
+      bars += `<text x="${cx.toFixed(1)}" y="${(barZoneBot + 13).toFixed(1)}" text-anchor="middle"
+        font-size="11" fill="${c}" font-weight="700" font-family="IBM Plex Mono,monospace">${row.count}ครั้ง</text>`;
     }
 
+    // เส้น — อยู่ในโซนบน
     if (row.vol > 0) {
-      const ly = padT + chartH - (row.vol / maxVol) * chartH;
+      const ly = lineZoneTop + lineZoneH - (row.vol / maxVol) * lineZoneH;
       linePts.push({ x: cx, y: ly, v: row.vol });
     }
   });
 
-  // เส้น
+  // เส้นและจุด
   let lineEl = '';
   if (linePts.length > 1) {
     lineEl = `<polyline points="${linePts.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ')}"
       fill="none" stroke="${c}" stroke-width="2.5" stroke-linejoin="round" opacity=".95"/>`;
   }
   linePts.forEach(p => {
-    lineEl += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4.5" fill="white" stroke="${c}" stroke-width="2"/>`;
-    lineEl += `<text x="${p.x.toFixed(1)}" y="${(p.y - 9).toFixed(1)}" text-anchor="middle"
-      font-size="10" fill="${c}" font-weight="700" font-family="IBM Plex Mono,monospace">${p.v}${med.unit}</text>`;
+    lineEl += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="5" fill="white" stroke="${c}" stroke-width="2.5"/>`;
+    // เลขปริมาณ อยู่เหนือจุด ตัวใหญ่ชัดเจน
+    lineEl += `<text x="${p.x.toFixed(1)}" y="${(p.y - 11).toFixed(1)}" text-anchor="middle"
+      font-size="13" fill="${c}" font-weight="700" font-family="IBM Plex Mono,monospace">${p.v}${med.unit}</text>`;
   });
+
+  // เส้นแบ่งโซนกลาง (optional — subtle)
+  const divider = `<line x1="${padL}" y1="${(barZoneTop - gapH/2).toFixed(1)}" x2="${W - padR}" y2="${(barZoneTop - gapH/2).toFixed(1)}"
+    stroke="#e8eaf0" stroke-width="1" stroke-dasharray="4,3"/>`;
 
   // label แกน x
   let xLabels = data.map((row, i) => {
@@ -1045,6 +1060,7 @@ function drawDrugChart(byDate, days, drugId) {
 
   const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;overflow:visible;">
     ${grid}
+    ${divider}
     ${bars}
     ${lineEl}
     ${xLabels}
