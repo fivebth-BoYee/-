@@ -386,9 +386,9 @@ const MEDS={
   sleep:   {name:"ยานอนหลับ",  sub:"Sleeping Tablet",      cls:"sleep",   unit:"เม็ด",doses:["0.5","1"]}
 };
 let logs=JSON.parse(localStorage.getItem("med-logs-v3")||"[]");
-let gsUrl=localStorage.getItem("gs-url")||"";
-let lineToken=localStorage.getItem("line-token")||"";
-let lineGroup=localStorage.getItem("line-group")||"";
+let gsUrl=localStorage.getItem("gs-url")||"https://script.google.com/macros/s/AKfycbzfyDUjxwHJsCO0MDj7TqMJR6rGrpRXsAnldsOo1XfUp1JO4NEvcW52XPFML6lYNuhe/exec";
+let lineToken=localStorage.getItem("line-token")||"v5Akyvh0g8e0VGR7Hj059tSCptxTs6MoNWq3skxi++YTdEN8M2tD2jcu9nFJetGLgYr7Hf7K7PEuj08NsjZRnStAddfMVgw0KGTBtYWt6itQ45qQqFff/dL4Ir5EjxnxVhDylgG3NLtBYWpTmqf9cwdB04t89/1O/w1cDnyilFU=";
+let lineGroup=localStorage.getItem("line-group")||"C3cd59ca408ce2b2170a6ac89e22b1bb5";
 let curMed=null,curDose=null,activeChartDrug="morphine",sheetLogs=null,activeQuick="all";
 const save=()=>localStorage.setItem("med-logs-v3",JSON.stringify(logs));
 
@@ -635,4 +635,5 @@ function toast(msg,type){const el=document.getElementById("toast");if(_toastTime
 
 updateLast();
 </script>
-<
+</body>
+</html>
