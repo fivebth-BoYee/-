@@ -488,7 +488,7 @@ async function saveDose(){
   logs.unshift(entry);save();updateLast();
   toast("✓ บันทึก "+m.name+" "+curDose+" "+m.unit,"ok");
   switchPage("home");
-  if(gsUrl){try{await fetch(gsUrl,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify(entry)});}catch(e){}}
+  if(gsUrl){const cbS="_save_"+Date.now(),sc=document.createElement("script");window[cbS]=function(){delete window[cbS];try{document.body.removeChild(sc);}catch(e){}};sc.onerror=function(){delete window[cbS];try{document.body.removeChild(sc);}catch(e){}};sc.src=gsUrl+"?callback="+cbS+"&payload="+encodeURIComponent(JSON.stringify(entry));document.body.appendChild(sc);}
   if(lineToken&&lineGroup)sendLINE(entry);
 }
 
@@ -496,7 +496,13 @@ function sendLINE(entry){
   if(!gsUrl)return;
   const icon=entry.medId==="morphine"?"💉":entry.medId==="para"?"💊":"🌙";
   const msg=icon+" บันทึกการให้ยา\n━━━━━━━━━━━━━\nยา: "+entry.medName+"\nขนาด: "+entry.dose+"\nเวลา: "+entry.displayTime+"\n━━━━━━━━━━━━━";
-  try{fetch(gsUrl,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"sendLine",token:lineToken,groupId:lineGroup,message:msg})});}catch(e){}
+  const payload={action:"sendLine",token:lineToken,groupId:lineGroup,message:msg};
+  const cbName="_line_"+Date.now();
+  const script=document.createElement("script");
+  window[cbName]=function(){delete window[cbName];try{document.body.removeChild(script);}catch(e){}};
+  script.onerror=function(){delete window[cbName];try{document.body.removeChild(script);}catch(e){}};
+  script.src=gsUrl+"?callback="+cbName+"&payload="+encodeURIComponent(JSON.stringify(payload));
+  document.body.appendChild(script);
 }
 
 function updateLast(){
